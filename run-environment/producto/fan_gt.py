@@ -7,6 +7,7 @@ import matplotlib as mlp
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import datetime
+import pandas as pd
 import os
 
 # Helper functions to plot a OSM map as background
@@ -42,44 +43,114 @@ def getImageCluster(lat_deg, lon_deg, delta_lat,  delta_long, zoom):
 
     return Cluster, [num2deg(xmin, ymax+1, zoom), num2deg(xmax+1, ymin, zoom)]
 
+
+# Get date from environment variable DATE in the format 2019-01-01
 str_date = os.environ.get("DATE")
 
 if str_date is None:
-    query_date = datetime.datetime.today()
+    query_date = datetime.datetime.utcnow().date() - datetime.timedelta(days=1)
 else:
     query_date = datetime.datetime.strptime(str_date, "%Y-%m-%d")                                                                                               
 
 yday = query_date.timetuple().tm_yday
 yearday = "{year}{day:03d}".format(year=query_date.year, day=yday)
 
-os.system(" ".join(['wget', "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/V" + yearday + ".L3m_DAY_SNPP_CHL_chlor_a_4km.nc",
-                               "-O", "/rawdata/data.nc"
-           ]) )
-
-d = Dataset("/rawdata/data.nc", "r", format="NETCDF4")
-
-
 import geopandas as gp
 
-lon_range = [-94,-87] # [-92.32910156250001, -90.6976318359375]
-lat_range = [12,18] # [ 13.159725022841753,  14.689881366618774]
-lons = np.argwhere((d.variables["lon"][:]>lon_range[0]) & (d.variables["lon"][:]<lon_range[1]))
-lats = np.argwhere((d.variables["lat"][:]>lat_range[0]) & (d.variables["lat"][:]<lat_range[1]))
-gtsubset = d.variables["chlor_a"][min(lats)[0]:max(lats)[0],min(lons)[0]:max(lons)[0]]
-print(gtsubset.shape)
+def plot_gt(d):
+    lon_range = [-93.2,-87] # [-92.32910156250001, -90.6976318359375]
+    lat_range = [12,18.5] # [ 13.159725022841753,  14.689881366618774]
+    lons = np.argwhere((d.variables["lon"][:]>lon_range[0]) & (d.variables["lon"][:]<lon_range[1]))
+    lats = np.argwhere((d.variables["lat"][:]>lat_range[0]) & (d.variables["lat"][:]<lat_range[1]))
+    gtsubset = d.variables["chlor_a"][min(lats)[0]:max(lats)[0],min(lons)[0]:max(lons)[0]]
+    print(gtsubset.shape)
 
-mapbg, bbox = getImageCluster(lat_range[0], lon_range[0], lat_range[1]-lat_range[0], lon_range[1]-lon_range[0], 7)
+    mapbg, bbox = getImageCluster(lat_range[0], lon_range[0], lat_range[1]-lat_range[0], lon_range[1]-lon_range[0], 7)
 
-mlp.rcParams["figure.figsize"] = (18, 18)
-mlp.rcParams["grid.alpha"] = 0.4
-fig,ax = plt.subplots()
-plt.xlim(lon_range[0], lon_range[1])
-plt.ylim(lat_range[0], lat_range[1])
-cmap = mlp.cm.jet
-cmap.set_bad('black',0.3)
-ax.imshow(mapbg, extent=(bbox[0][1], bbox[1][1], bbox[0][0], bbox[1][0]), interpolation = "gaussian")
-satimg = ax.imshow(gtsubset, cmap = cmap, extent=(lon_range[0], lon_range[1], lat_range[0], lat_range[1]), 
-                    norm=mlp.colors.LogNorm(vmin=gtsubset.min(), vmax=gtsubset.max()) )
-plt.colorbar(satimg, shrink=0.5)
+    mlp.rcParams["figure.dpi"] = 200
+    mlp.rcParams["figure.figsize"] = (9, 9)
+    mlp.rcParams["grid.alpha"] = 0.5
 
-plt.savefig("/output/SNPP_chlor_a_gtm_"+yearday+".png")
+    fig,ax = plt.subplots()
+    plt.xlim(lon_range[0], lon_range[1])
+    plt.ylim(lat_range[0], lat_range[1])
+    cmap = mlp.cm.get_cmap("jet", 20)
+    cmap.set_bad('black',0.3)
+    norm = mlp.colors.LogNorm(vmin=0.01, vmax=40)  # (vmin=gtsubset.min(), vmax=gtsubset.max())
+    ax.imshow(mapbg, extent=(bbox[0][1], bbox[1][1], bbox[0][0], bbox[1][0]), interpolation = "gaussian")
+    satimg = ax.imshow(gtsubset, cmap = cmap, extent=(lon_range[0], lon_range[1], lat_range[0], lat_range[1]), 
+                        norm=norm)
+    cb = plt.colorbar(satimg, shrink=0.75)
+    #cb.set_ticks([x+0.5 for x in norm.inverse([(x+0.0001) for x in range(0,30,2)]) ])
+    #cb.set_ticklabels([x for x in range(0,30,2) ])
+    cb.set_ticks([np.round(x,2) for x in norm.inverse([(x-0.5)/20 for x in range(1,21)])], update_ticks=True)
+    cb.set_ticklabels([np.round(x,2) for x in norm.inverse([(x-0.5)/20 for x in range(1,21)])])
+    cb.ax.tick_params(which = 'minor', length = 0)
+    plt.grid(True)
+    plt.tight_layout()
+    return gtsubset, d.variables["lon"][min(lons)[0]:max(lons)[0]], d.variables["lat"][min(lats)[0]:max(lats)[0]]
+
+
+# Fetch data from NASA's Oceancolor data repository
+# VIIRS SNPP
+os.system(" ".join(['wget', "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/V" + yearday + ".L3m_DAY_SNPP_CHL_chlor_a_4km.nc",
+                               "-O", "/rawdata/data1.nc"
+           ]) )
+
+if os.path.exists("/rawdata/data1.nc"):
+    try:
+        d1 = Dataset("/rawdata/data1.nc", "r", format="NETCDF4")
+    except: 
+        print("ERROR: Invalid VIIRS SNPP data.")
+    else:
+        data, alons, alats = plot_gt(d1)
+        lons, lats = np.meshgrid(alons, alats)
+        plt.title("VIIRS-SNPP\nClorofila (chlor_a) "+str(query_date) )
+        plt.savefig("/output/VIIRS-SNPP_chlor_a_gtm_"+yearday+".png")
+        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/VIIRS-SNPP_chlor_a_gtm_data.csv")
+        plt.clf()
+        d1.close()
+else:
+    print("ERROR: VIIRS SNPP data could not be downloaded")
+
+# VIIRS JPSS
+os.system(" ".join(['wget', "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/V" + yearday + ".L3m_DAY_JPSS_CHL_chlor_a_4km.nc",
+                               "-O", "/rawdata/data2.nc"
+           ]) )
+if os.path.exists("/rawdata/data2.nc"):
+    try:
+        d2 = Dataset("/rawdata/data2.nc", "r", format="NETCDF4")
+    except: 
+        print("ERROR: Invalid VIIRS JPSS data.")
+    else:
+        data, alons, alats = plot_gt(d2)
+        lons, lats = np.meshgrid(alons, alats)
+        plt.title("VIIRS-SNPP\nClorofila (chlor_a) "+str(query_date) )
+        plt.savefig("/output/VIIRS-SNPP_chlor_a_gtm_"+yearday+".png")
+        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/VIIRS-SNPP_chlor_a_gtm_data.csv")
+        plt.clf()
+        d2.close()
+else:
+    print("ERROR: VIIRS JPSS data could not be downloaded")
+
+# AQUA MODIS
+os.system(" ".join(['wget', "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A" + yearday + ".L3m_DAY_CHL_chlor_a_4km.nc",
+                               "-O", "/rawdata/data3.nc"
+           ]) )
+
+if os.path.exists("/rawdata/data3.nc"):
+    try:
+        d3 = Dataset("/rawdata/data3.nc", "r", format="NETCDF4")
+    except: 
+        print("ERROR: Invalid MODIS Aqua data.")
+    else:
+        data, alons, alats = plot_gt(d3)
+    lons, lats = np.meshgrid(alons, alats)
+    plt.title("MODIS Aqua\nClorofila (chlor_a) "+str(query_date) )
+    plt.savefig("/output/MODIS-Aqua_chlor_a_gtm_"+yearday+".png")
+    pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/MODIS-Aqua_chlor_a_gtm_data.csv")
+    plt.clf()
+    d3.close()
+else:
+    print("ERROR: MODIS Aqua data could not be downloaded")
+
