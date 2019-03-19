@@ -57,6 +57,11 @@ yearday = "{year}{day:03d}".format(year=query_date.year, day=yday)
 
 import geopandas as gp
 
+mlp.rcParams["font.family"] ='serif'
+mlp.rcParams["figure.dpi"] = 175
+mlp.rcParams["figure.figsize"] = (9, 9)
+mlp.rcParams["grid.alpha"] = 0.5
+
 def plot_gt(d):
     lon_range = [-93.2,-87] # [-92.32910156250001, -90.6976318359375]
     lat_range = [12,18.5] # [ 13.159725022841753,  14.689881366618774]
@@ -66,10 +71,6 @@ def plot_gt(d):
     print(gtsubset.shape)
 
     mapbg, bbox = getImageCluster(lat_range[0], lon_range[0], lat_range[1]-lat_range[0], lon_range[1]-lon_range[0], 7)
-
-    mlp.rcParams["figure.dpi"] = 200
-    mlp.rcParams["figure.figsize"] = (9, 9)
-    mlp.rcParams["grid.alpha"] = 0.5
 
     fig,ax = plt.subplots()
     plt.xlim(lon_range[0], lon_range[1])
@@ -105,16 +106,16 @@ if os.path.exists("/rawdata/data1.nc"):
     else:
         data, alons, alats = plot_gt(d1)
         lons, lats = np.meshgrid(alons, alats)
-        plt.title("VIIRS-SNPP\nClorofila (chlor_a) "+str(query_date) )
-        plt.savefig("/output/VIIRS-SNPP_chlor_a_gtm_"+yearday+".png")
-        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/VIIRS-SNPP_chlor_a_gtm_data.csv")
+        plt.title("VIIRS-SNPP (chlor_a)\nClorofila (mg/m³) \n "+str(query_date.date()) )
+        plt.savefig("/output/VIIRS-SNPP_chlor_a_gtm_"+str(query_date.date())+".png")
+        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/VIIRS-SNPP_chlor_a_gtm_data_"+str(query_date.date())+".csv")
         plt.clf()
         d1.close()
 else:
     print("ERROR: VIIRS SNPP data could not be downloaded")
 
 # VIIRS JPSS
-os.system(" ".join(['wget', "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/V" + yearday + ".L3m_DAY_JPSS_CHL_chlor_a_4km.nc",
+os.system(" ".join(['wget', "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/V" + yearday + ".L3m_DAY_JPSS1_CHL_chlor_a_4km.nc",
                                "-O", "/rawdata/data2.nc"
            ]) )
 if os.path.exists("/rawdata/data2.nc"):
@@ -125,9 +126,9 @@ if os.path.exists("/rawdata/data2.nc"):
     else:
         data, alons, alats = plot_gt(d2)
         lons, lats = np.meshgrid(alons, alats)
-        plt.title("VIIRS-SNPP\nClorofila (chlor_a) "+str(query_date) )
-        plt.savefig("/output/VIIRS-SNPP_chlor_a_gtm_"+yearday+".png")
-        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/VIIRS-SNPP_chlor_a_gtm_data.csv")
+        plt.title("VIIRS-JPSS (chlor_a)\nClorofila (mg/m³) \n "+str(query_date.date()) )
+        plt.savefig("/output/VIIRS-JPSS1_chlor_a_gtm_"+str(query_date.date())+".png")
+        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/VIIRS-JPSS1_chlor_a_gtm_data_"+str(query_date.date())+".csv")
         plt.clf()
         d2.close()
 else:
@@ -146,9 +147,9 @@ if os.path.exists("/rawdata/data3.nc"):
     else:
         data, alons, alats = plot_gt(d3)
     lons, lats = np.meshgrid(alons, alats)
-    plt.title("MODIS Aqua\nClorofila (chlor_a) "+str(query_date) )
-    plt.savefig("/output/MODIS-Aqua_chlor_a_gtm_"+yearday+".png")
-    pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/MODIS-Aqua_chlor_a_gtm_data.csv")
+    plt.title("MODIS Aqua (chlor_a)\nClorofila (mg/m³) \n "+str(query_date.date()) )
+    plt.savefig("/output/MODIS-Aqua_chlor_a_gtm_"+str(query_date.date())+".png")
+    pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/MODIS-Aqua_chlor_a_gtm_data_"+str(query_date.date())+".csv")
     plt.clf()
     d3.close()
 else:
