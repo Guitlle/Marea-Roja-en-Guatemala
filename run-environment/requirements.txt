@@ -1,0 +1,5 @@
+geopandas
+netcdf4
+requests
+pillow
+matplotlib
