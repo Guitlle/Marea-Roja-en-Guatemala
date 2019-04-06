@@ -146,12 +146,12 @@ if os.path.exists("/rawdata/data3.nc"):
         print("ERROR: Invalid MODIS Aqua data.")
     else:
         data, alons, alats = plot_gt(d3)
-    lons, lats = np.meshgrid(alons, alats)
-    plt.title("MODIS Aqua (chlor_a)\nClorofila (mg/m³) \n "+str(query_date.date()) )
-    plt.savefig("/output/MODIS-Aqua_chlor_a_gtm_"+str(query_date.date())+".png")
-    pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/MODIS-Aqua_chlor_a_gtm_data_"+str(query_date.date())+".csv")
-    plt.clf()
-    d3.close()
+        lons, lats = np.meshgrid(alons, alats)
+        plt.title("MODIS Aqua (chlor_a)\nClorofila (mg/m³) \n "+str(query_date.date()) )
+        plt.savefig("/output/MODIS-Aqua_chlor_a_gtm_"+str(query_date.date())+".png")
+        pd.DataFrame(data = { "value": data.flatten(), "lons": lons.flatten(), "lats": lats.flatten() }).to_csv("/output/MODIS-Aqua_chlor_a_gtm_data_"+str(query_date.date())+".csv")
+        plt.clf()
+        d3.close()
 else:
     print("ERROR: MODIS Aqua data could not be downloaded")
 
