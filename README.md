@@ -2,10 +2,14 @@
 
 Como parte de mi proyecto de prácticas finales de la licenciatura en Física, estoy trabajando para el INSIVUMEH en un producto de detección remota de floarciones algales nocivas (FAN).
 
+
+
+## Producto
+
 Construir la imagen de docker:
 
 ```
-cd run-environment
+cd producto-docker/run-environment
 docker build -t geopy-1 .
 ```
 
