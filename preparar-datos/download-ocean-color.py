@@ -2,71 +2,81 @@ import pandas as pd
 from netCDF4 import Dataset
 import datetime
 import os
+import sys
 import math
+import time
 import numpy as np
+import xarray
 import requests
 import json 
 
 errors = []
 meta = {}
-lon_range = [-123,-87] # [-92.32910156250001, -90.6976318359375]
-lat_range = [12,37.5] # [ 13.159725022841753,  14.689881366618774]
+# Incluir datos de california para estudiar los datos de SCOOS
+#lon_range = [-123,-87] # [-92.32910156250001, -90.6976318359375]
+#lat_range = [11.8,37.5] # [ 13.159725022841753,  14.689881366618774]
+lon_range = [-93.2,-87] # [-92.32910156250001, -90.6976318359375]
+lat_range = [12,18.5] # [ 13.159725022841753,  14.689881366618774]
+
+
+rawdata_path = "./raw/"
+output_path = "./output/"
+
+
 # prefix = "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/V"
 # suffix = ".L3m_DAY_JPSS1_CHL_chlor_a_4km.nc"
-def fetchData(file_prefix, file_suffix, query_date):
-    yday = query_date.timetuple().tm_yday
-    yearday = "{year}{day:03d}".format(year=query_date.year, day=yday)
-    url = file_prefix + yearday + file_suffix
-    print("Downloading " + url)
-    os.system(" ".join(['wget', url,
-                                "-O", "/rawdata/data.nc"
-            ]) )
-    if os.path.exists("/rawdata/data.nc"):
-        try:
-            dataset = Dataset("/rawdata/data.nc", "r", format="NETCDF4")
-        except: 
-            print("ERROR: Invalid data.")
+class OceanColorDataset:
+    def __init__(self, file_prefix, file_suffix, query_date):
+        self.file_prefix = file_prefix
+        self.file_suffix = file_suffix
+        self.query_date  = query_date
+    
+    def fetchData(self):
+        yday = self.query_date.timetuple().tm_yday
+        self.yearday = "{year}{day:03d}".format(year=self.query_date.year, day=yday)
+        url = self.file_prefix + self.yearday + self.file_suffix
+        print("Downloading " + url)
+        os.system(" ".join(['wget', url,
+                                    "-O", rawdata_path + "data.nc"
+                ]) )
+    def readData(self):
+        if os.path.exists(rawdata_path + "data.nc"):
+            try:
+                xrd = xarray.open_dataset(rawdata_path + "data.nc" , cache=False)
+                print("QUERY DATE: ", self.query_date)
+            except: 
+                print("ERROR: Invalid data. ", self.query_date)
+                errors.append({
+                    "prefix": self.file_prefix,
+                    "suffix": self.file_suffix,
+                    "date": self.query_date
+                })
+                return None
+        else:
+            print("ERROR: Data file could not be downloaded")
             errors.append({
-                "prefix": file_prefix,
-                "suffix": file_suffix,
-                "date": query_date
-            })
+                    "prefix": self.file_prefix,
+                    "suffix": self.file_suffix,
+                    "date": self.query_date
+                })
             return None
-    else:
-        print("ERROR: Data file could not be downloaded")
-        errors.append({
-                "prefix": file_prefix,
-                "suffix": file_suffix,
-                "date": query_date
-            })
-        return None
-    lons = np.argwhere((dataset.variables["lon"][:]>lon_range[0]) & (dataset.variables["lon"][:]<lon_range[1]))
-    lats = np.argwhere((dataset.variables["lat"][:]>lat_range[0]) & (dataset.variables["lat"][:]<lat_range[1]))
-    key = list(dataset.variables.keys())[0]
-    subset = dataset.variables[key][min(lats)[0]:max(lats)[0],min(lons)[0]:max(lons)[0]]
+        self.dataset = xrd
     
-    print("Data shape: ", subset.shape, " data var: ", key)
-    alons, alats = dataset.variables["lon"][min(lons)[0]:max(lons)[0]], dataset.variables["lat"][min(lats)[0]:max(lats)[0]]
+    def save(self, file_prefix, lat_range, lon_range ):
+        xrd = self.dataset.sel(lat = slice(lat_range[1],lat_range[0] ),lon=  slice(lon_range[0], lon_range[1]))
 
-    lons, lats = np.meshgrid(alons, alats)
-    adataframe = pd.DataFrame(data = { "value": subset.flatten(), "lons": lons.flatten(), "lats": lats.flatten() })
-    yearday = query_date.year*1000 + yday
-    adataframe["YearDay"] =  yearday
-    instr_abbrev = dataset.instrument[0:3] + dataset.platform[0]
-    adataframe["Instrument"] = instr_abbrev
-    if instr_abbrev not in meta:
-        meta[instr_abbrev] = {}
-    if key not in meta[instr_abbrev]:
-        meta[instr_abbrev][key] = {}
-    meta[instr_abbrev][key][yearday] = {
-            "latitude_step" : dataset.latitude_step,
-            "longitude_step": dataset.longitude_step
-        }
-    dataset.close()
-    os.system(" ".join(['rm', "/rawdata/data.nc"]) )
-    
-    return adataframe
+        xrd.to_netcdf(output_path + file_prefix + self.yearday + self.file_suffix)
 
+    def close(self):
+        self.dataset.close()
+        os.system(" ".join(['rm', rawdata_path + "data.nc"]) )
+        # Try reload the dataset just to force refresh (somehow netcdf4 does not read the actual file, it assumes it has the same data)
+        try:
+            xrd = xarray.open_dataset(rawdata_path + "data.nc" , cache=False)
+            xrd.close()
+        except: 
+            pass
+        
 # MODIS Aqua and Terra:
 data_catalog = {
         "MODA": [
@@ -85,14 +95,47 @@ data_catalog = {
             ] 
     }
 
-# Lets download only 2018
-d = datetime.date(2018,1,1)
-df = datetime.date(2018,1,5)
-dd = datetime.timedelta(days=1)
-data = pd.DataFrame()
-while d <= df:
-    for mission, variables in data_catalog.items():
-        for variable in variables:
-            subdata = fetchData(variable["prefix"], variable["suffix"], d)
-            data = pd.concat([data, subdata], ignore_index=True)
-    d = d + dd
+
+if __name__ == "__main__":
+    if (len(sys.argv) == 3):
+        d    = datetime.datetime.strptime(sys.argv[1], "%Y-%m-%d")  # datetime.date(2018,1,1)
+        df   = datetime.datetime.strptime(sys.argv[2], "%Y-%m-%d")  # datetime.date(2018,1,5)
+    else:
+        print("Usage: \n  python download-ocean-color.py <date start> <date end>")
+        exit()
+    
+    dd   = datetime.timedelta(days=1)
+    data = pd.DataFrame()
+    while d <= df:
+        for mission, variables in data_catalog.items():
+            for variable in variables:
+                o = OceanColorDataset(variable["prefix"], variable["suffix"], d)                                                                                                                  
+                o.fetchData()
+                o.readData()
+                o.save(mission, lat_range, lon_range)
+                time.sleep(1.5)
+        d = d + dd
+        time.sleep(2)
+    print(errors)
+
+# Make some quick tests
+# Ignore this
+if False:
+    mission, variables =  data_catalog.items().__iter__().__next__()                                                                                                                  
+    variable = variables[0]                                                                                                                                                           
+    d = datetime.datetime(2018,1,15) 
+    o = OceanColorDataset(variable["prefix"], variable["suffix"], d)                                                                                                                  
+    o.fetchData()
+    o.readData()
+    o.save(mission, lat_range, lon_range)
+    #o.dataset["chlor_a"].plot()
+    print(o.dataset.attrs["time_coverage_end"])
+    o.close()
+    d = datetime.datetime(2018,12,13) 
+    o = OceanColorDataset(variable["prefix"], variable["suffix"], d)                                                                                                                  
+    o.fetchData()
+    o.readData()
+    o.save(mission, lat_range, lon_range)    #o.dataset["chlor_a"].plot()
+    print(o.dataset.attrs["time_coverage_end"])
+    o.close()
+    
