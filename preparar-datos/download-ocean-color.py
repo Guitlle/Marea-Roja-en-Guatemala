@@ -40,20 +40,24 @@ class OceanColorDataset:
                                     "-O", rawdata_path + "data.nc"
                 ]) )
     def readData(self):
+        global errors
         if os.path.exists(rawdata_path + "data.nc"):
             try:
                 xrd = xarray.open_dataset(rawdata_path + "data.nc" , cache=False)
                 print("QUERY DATE: ", self.query_date)
             except: 
                 print("ERROR: Invalid data. ", self.query_date)
+                self.dataset = None
                 errors.append({
                     "prefix": self.file_prefix,
                     "suffix": self.file_suffix,
                     "date": self.query_date
                 })
+                
                 return None
         else:
             print("ERROR: Data file could not be downloaded")
+            self.dataset = None
             errors.append({
                     "prefix": self.file_prefix,
                     "suffix": self.file_suffix,
@@ -79,20 +83,34 @@ class OceanColorDataset:
         
 # MODIS Aqua and Terra:
 data_catalog = {
-        "MODA": [
+        #"MODT": [
+        #        {
+        #            "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+        #            "suffix": ".L3m_DAY_CHL_chlor_a_4km.nc"
+        #        },
+        #        {
+        #            "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+        #            "suffix": ".L3m_DAY_SST_sst_4km.nc"
+        #        },
+        #        {
+        #            "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+        #            "suffix": ".L3m_DAY_GSM_bbp_443_gsm_4km.nc"
+        #        }
+        #    ],
+        "MODT": [
                 {
-                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/T",
                     "suffix": ".L3m_DAY_CHL_chlor_a_4km.nc"
                 },
                 {
-                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/T",
                     "suffix": ".L3m_DAY_SST_sst_4km.nc"
                 },
                 {
-                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/T",
                     "suffix": ".L3m_DAY_GSM_bbp_443_gsm_4km.nc"
                 }
-            ] 
+            ]
     }
 
 
@@ -112,7 +130,8 @@ if __name__ == "__main__":
                 o = OceanColorDataset(variable["prefix"], variable["suffix"], d)                                                                                                                  
                 o.fetchData()
                 o.readData()
-                o.save(mission, lat_range, lon_range)
+                if o.dataset is not None:
+                    o.save(mission, lat_range, lon_range)
                 time.sleep(1.5)
         d = d + dd
         time.sleep(2)
