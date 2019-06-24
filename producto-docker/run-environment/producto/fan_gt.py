@@ -26,18 +26,31 @@ def num2deg(xtile, ytile, zoom):
   return (lat_deg, lon_deg)
 
 
+def getImageClusterPreprocesado(lat_deg, lon_deg, delta_lat,  delta_long, zoom):
+    # Esto carga una imagen preprocesada para el fondo del mapa que encaja con estas coordenadas:
+    # lon_range = [-93.2,-87] 
+    # lat_range = [12,18.5] 
+    
+    smurl = r"http://a.tile.openstreetmap.org/{0}/{1}/{2}.png"
+    xmin, ymax =deg2num(lat_deg, lon_deg, zoom)
+    xmax, ymin =deg2num(lat_deg + delta_lat, lon_deg + delta_long, zoom)
+    
+    Cluster = Image.open("app/fondo-gt-20190624.png")
+    
+    return Cluster, [num2deg(xmin, ymax+1, zoom), num2deg(xmax+1, ymin, zoom)]
+
 
 def getImageCluster(lat_deg, lon_deg, delta_lat,  delta_long, zoom):
     smurl = r"http://a.tile.openstreetmap.org/{0}/{1}/{2}.png"
     xmin, ymax =deg2num(lat_deg, lon_deg, zoom)
     xmax, ymin =deg2num(lat_deg + delta_lat, lon_deg + delta_long, zoom)
-
+    
     Cluster = Image.new('RGB',((xmax-xmin+1)*256-1,(ymax-ymin+1)*256-1) ) 
     for xtile in range(xmin, xmax+1):
         for ytile in range(ymin,  ymax+1):
             imgurl=smurl.format(zoom, xtile, ytile)
             # print("Opening: " + imgurl)
-            imgstr = requests.get(imgurl).content
+            imgstr = requests.get(imgurl, headers = {'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; hu-HU; rv:1.7.8) Gecko/20050511 Firefox/1.0.4'}).content
             tile = Image.open(BytesIO(imgstr))
             Cluster.paste(tile, box=((xtile-xmin)*256 ,  (ytile-ymin)*255))
 
@@ -70,7 +83,7 @@ def plot_gt(d):
     gtsubset = d.variables["chlor_a"][min(lats)[0]:max(lats)[0],min(lons)[0]:max(lons)[0]]
     print(gtsubset.shape)
 
-    mapbg, bbox = getImageCluster(lat_range[0], lon_range[0], lat_range[1]-lat_range[0], lon_range[1]-lon_range[0], 7)
+    mapbg, bbox = getImageClusterPreprocesado(lat_range[0], lon_range[0], lat_range[1]-lat_range[0], lon_range[1]-lon_range[0], 7)
 
     fig,ax = plt.subplots()
     plt.xlim(lon_range[0], lon_range[1])
