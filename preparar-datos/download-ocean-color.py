@@ -13,10 +13,10 @@ import json
 errors = []
 meta = {}
 # Incluir datos de california para estudiar los datos de SCOOS
-#lon_range = [-123,-87] # [-92.32910156250001, -90.6976318359375]
-#lat_range = [11.8,37.5] # [ 13.159725022841753,  14.689881366618774]
-lon_range = [-93.2,-87] # [-92.32910156250001, -90.6976318359375]
-lat_range = [12,18.5] # [ 13.159725022841753,  14.689881366618774]
+lon_range = [-123,-93] # [-92.32910156250001, -90.6976318359375]
+lat_range = [18.5,37.5] # [ 13.159725022841753,  14.689881366618774]
+#lon_range = [-93.2,-87] # [-92.32910156250001, -90.6976318359375]
+#lat_range = [12,18.5] # [ 13.159725022841753,  14.689881366618774]
 
 
 rawdata_path = "./raw/"
@@ -83,20 +83,20 @@ class OceanColorDataset:
         
 # MODIS Aqua and Terra:
 data_catalog = {
-        #"MODT": [
-        #        {
-        #            "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
-        #            "suffix": ".L3m_DAY_CHL_chlor_a_4km.nc"
-        #        },
-        #        {
-        #            "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
-        #            "suffix": ".L3m_DAY_SST_sst_4km.nc"
-        #        },
-        #        {
-        #            "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
-        #            "suffix": ".L3m_DAY_GSM_bbp_443_gsm_4km.nc"
-        #        }
-        #    ],
+        "MODA": [
+                {
+                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+                    "suffix": ".L3m_DAY_CHL_chlor_a_4km.nc"
+                },
+                {
+                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+                    "suffix": ".L3m_DAY_SST_sst_4km.nc"
+                },
+                {
+                    "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/A",
+                    "suffix": ".L3m_DAY_GSM_bbp_443_gsm_4km.nc"
+                }
+            ],
         "MODT": [
                 {
                     "prefix": "https://oceandata.sci.gsfc.nasa.gov/cgi/getfile/T",
